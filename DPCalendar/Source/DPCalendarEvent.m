@@ -10,9 +10,10 @@
 
 @implementation DPCalendarEvent
 
--(id)initWithTitle:(NSString *)title startTime:(NSDate *)startTime endTime:(NSDate *)endTime colorIndex:(uint)colorIndex {
+-(id)initWithEventid:(NSString*)eventId Title:(NSString *)title startTime:(NSDate *)startTime endTime:(NSDate *)endTime colorIndex:(uint)colorIndex {
     self = [super init];
     if (self) {
+        _eventId = eventId;
         _title = title;
         _startTime = startTime;
         _endTime = endTime;
@@ -22,7 +23,7 @@
 }
 
 -(NSString *)description {
-    return [NSString stringWithFormat:@"Title:%@, StartTime:%@, EndTime:%@, colorIndex:%d", self.title, self.startTime, self.endTime, self.colorIndex];
+    return [NSString stringWithFormat:@"EventID: %@, Title:%@, StartTime:%@, EndTime:%@, colorIndex:%d", self.eventId, self.title, self.startTime, self.endTime, self.colorIndex];
 }
 
 @end

@@ -20,9 +20,10 @@
     return self;
 }
 
--(id)initWithTitle:(NSString *)title startTime:(NSDate *)startTime endTime:(NSDate *)endTime icon:(UIImage *)icon bkgColorIndex:(uint)bkgColorIndex{
+-(id)initWithEventId:(NSString*)eventId Title:(NSString *)title startTime:(NSDate *)startTime endTime:(NSDate *)endTime icon:(UIImage *)icon bkgColorIndex:(uint)bkgColorIndex{
     self = [super init];
     if (self) {
+        _eventid = eventId;
         _title = title;
         _startTime = startTime;
         _endTime = endTime;
@@ -33,7 +34,7 @@
 }
 
 -(NSString *)description {
-    return [NSString stringWithFormat:@"Title:%@, StartTime:%@, EndTime:%@", self.title, self.startTime, self.endTime];
+    return [NSString stringWithFormat:@"EventId: %@, Title:%@, StartTime:%@, EndTime:%@", self.eventid, self.title, self.startTime, self.endTime];
 }
 
 @end

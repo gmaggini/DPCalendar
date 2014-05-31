@@ -10,6 +10,7 @@
 
 @interface DPCalendarIconEvent : NSObject
 
+@property (nonatomic, readonly) NSString *eventid;
 @property (nonatomic, readonly) UIImage *icon;
 @property (nonatomic, readonly) NSString *title;
 @property (nonatomic, readonly) NSDate *startTime;
@@ -18,5 +19,5 @@
 
 
 -(id)initWithStartTime:(NSDate *)startTime endTime:(NSDate *)endTime icon:(UIImage *)icon;
--(id)initWithTitle:(NSString *)title startTime:(NSDate *)startTime endTime:(NSDate *)endTime icon:(UIImage *)icon bkgColorIndex:(uint)bkgColorIndex;
+-(id)initWithEventId:(NSString*)eventId Title:(NSString *)title startTime:(NSDate *)startTime endTime:(NSDate *)endTime icon:(UIImage *)icon bkgColorIndex:(uint)bkgColorIndex;
 @end

@@ -13,6 +13,8 @@
 #import "DPCalendarEvent.h"
 #import "DPCalendarIconEvent.h"
 #import "DPConstants.h"
+#import "GWCalendarHelper.h"
+#import <CupertinoYankee/NSDate+CupertinoYankee.h>
 
 NSString *const DPCalendarMonthlyViewAttributeWeekdayHeight = @"DPCalendarMonthlyViewAttributeWeekdayHeight";
 NSString *const DPCalendarMonthlyViewAttributeWeekdayFont = @"DPCalendarMonthlyViewAttributeWeekdayFont";
@@ -103,9 +105,6 @@ static NSInteger const DPCalendarMonthlyViewAttributeStartDayOfWeekDefault = 0; 
 
 @property (nonatomic) NSUInteger maxEventsPerDay;
 @property (nonatomic, strong) NSOperationQueue *processQueue;
-
-@property (nonatomic, strong) NSDictionary *eventsForEachDay;
-@property (nonatomic, strong) NSDictionary *iconEventsForEachDay;
 
 @end
 
@@ -545,11 +544,21 @@ static NSInteger const DPCalendarMonthlyViewAttributeStartDayOfWeekDefault = 0; 
 }
 
 -(NSArray *)eventsForDay:(NSDate *)date {
-    return [self.eventsForEachDay objectForKey:date];
+    NSArray *activities = [GWCalendarHelper eventsForDay:date];
+    NSMutableArray *events = [[NSMutableArray alloc] init];
+    [activities enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+        Activity *a = [activities objectAtIndex:idx];
+        NSDate *startTime = a.my_datetime_start; //[a.my_datetime_start timeIntervalSinceDate:[date beginningOfDay]] <0 ? nil : a.my_datetime_start;
+        NSDate *endTime = a.my_datetime_end; // [a.my_datetime_end timeIntervalSinceDate:[date endOfDay]] >0 ? nil : a.my_datetime_end;
+        DPCalendarEvent *event = [[DPCalendarEvent alloc] initWithEventid:a.crm_id Title:a.crm_subject startTime:startTime endTime:endTime colorIndex:1];
+        event.rowIndex = idx;
+        [events addObject:event];
+    }];
+    return  events;
 }
 
 -(NSArray *)iconEventsForDay:(NSDate *)date {
-    return [self.iconEventsForEachDay objectForKey:date];
+    return @[];
 }
 
 
@@ -632,8 +641,8 @@ static NSInteger const DPCalendarMonthlyViewAttributeStartDayOfWeekDefault = 0; 
         
         [cell setDate:date
              calendar:self.calendar
-               events:[self.eventsForEachDay objectForKey:date]
-           iconEvents:[self.iconEventsForEachDay objectForKey:date]];
+               events:[self eventsForDay:date]
+           iconEvents:[self iconEventsForDay:date]];
         
         cell.separatorColor = self.separatorColor;
         
@@ -786,152 +795,6 @@ static NSInteger const DPCalendarMonthlyViewAttributeStartDayOfWeekDefault = 0; 
     
     return [UIColor colorWithRed:231/255.f green:241/255.f blue:248/255.f alpha:1];
 }
-
-#pragma mark - Deprecated
-
--(void)setEvents:(NSArray *)passedEvents complete:(void (^)(void))complete{
-    __weak __typeof(&*self)weakSelf = self;
-    
-    [self.processQueue addOperationWithBlock:^{
-        NSMutableDictionary *eventsByDay = [NSMutableDictionary new];
-        NSArray *events = [passedEvents sortedArrayUsingComparator:^NSComparisonResult(DPCalendarEvent *obj1, DPCalendarEvent *obj2) {
-            return [obj1.startTime compare: obj2.startTime];
-        }];
-        if (events.count) {
-            
-            /*****************************************************************
-             *
-             * Step2:
-             *      Iterate all events and add event to the dictionary, also
-             * calculate the position that we want to show the event (rowIndex).
-             * If the rowIndex value is 0, we don't show that event.
-             *
-             *****************************************************************/
-            for (DPCalendarEvent *event in events) {
-                event.rowIndex = 0;
-                NSUInteger preservedComponents = (NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit);
-                NSDate *startDate = [weakSelf.calendar dateFromComponents:[weakSelf.calendar components:preservedComponents fromDate:event.startTime]];
-                
-                NSDate *endDate = [weakSelf.calendar dateFromComponents:[weakSelf.calendar components:preservedComponents fromDate:[event.endTime dateByAddingYears:0 months:0 days:1]]];
-                
-                NSDate *date = [startDate copy];
-                
-                /*****************************************************************
-                 *
-                 * Add that event to the corresponding date
-                 *
-                 *****************************************************************/
-                while ([date compare:endDate] != NSOrderedSame) {
-                    if ([eventsByDay objectForKey:date]) {
-                        [((NSMutableArray *)[eventsByDay objectForKey:date]) addObject:event];
-                    } else {
-                        [eventsByDay setObject:@[event].mutableCopy forKey:date];
-                    }
-                    date = [date dateByAddingYears:0 months:0 days:1];
-                }
-                
-                NSMutableArray *otherEventsInTheSameDay = [eventsByDay objectForKey:startDate];
-                
-                /*****************************************************************
-                 *
-                 * We check the available max rowIndex and set it to the event.
-                 * If that is no available position, we keep it as 0.
-                 *
-                 *****************************************************************/
-                NSMutableArray *rowIndexs = @[].mutableCopy;
-                for (int i = 0; i < otherEventsInTheSameDay.count; i++) {
-                    [rowIndexs addObject:[NSNumber numberWithInt:0]];
-                }
-                for (DPCalendarEvent *event in otherEventsInTheSameDay) {
-                    if (event.rowIndex && event.rowIndex < (rowIndexs.count + 1)) {
-                        [rowIndexs setObject:[NSNumber numberWithInt:1] atIndexedSubscript:(event.rowIndex - 1)];
-                    }
-                }
-                int i = 1;
-                while ((i < rowIndexs.count + 1) && ([[rowIndexs objectAtIndex:i - 1] intValue] == 1)) {
-                    i++;
-                }
-                if (i < weakSelf.maxEventsPerDay + 1) {
-                    event.rowIndex = i;
-                }
-            }
-        }
-        
-        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-            weakSelf.eventsForEachDay = eventsByDay.copy;
-            [weakSelf reloadCurrentView];
-            if (complete) complete();
-        }];
-    }];
-}
-
--(void)setIconEvents:(NSArray *)passedIconEvents complete:(void (^)(void))complete{
-    __weak __typeof(&*self)weakSelf = self;
-    [self.processQueue addOperationWithBlock:^{
-        NSArray *iconEvents = [passedIconEvents sortedArrayUsingComparator:^NSComparisonResult(DPCalendarIconEvent *obj1, DPCalendarIconEvent *obj2) {
-            return [obj1.startTime compare: obj2.startTime];
-        }];
-        NSMutableDictionary *eventsByDay = [NSMutableDictionary new];
-        if (iconEvents.count) {
-            /*****************************************************************
-             *
-             * Step1:
-             *      we need to create a dictionary of @{date, array}
-             * to store the events.
-             *      ie. have a map with keys from
-             * 29/12/2013 - 1/02/2014
-             *
-             *****************************************************************/
-            NSDate *firstDay = [((DPCalendarIconEvent *)[iconEvents objectAtIndex:0]).startTime dp_dateWithoutTimeWithCalendar:weakSelf.calendar];
-            NSDate *lastDay = [((DPCalendarIconEvent *)[iconEvents objectAtIndex:iconEvents.count - 1]).endTime dp_dateWithoutTimeWithCalendar:weakSelf.calendar];
-            for (DPCalendarIconEvent *event in iconEvents) {
-                if ([lastDay compare:event.endTime] == NSOrderedAscending) {
-                    lastDay = event.endTime;
-                }
-            }
-            NSDate *iterateDay = firstDay.copy;
-            while ([iterateDay compare:lastDay] != NSOrderedDescending) {
-                [eventsByDay setObject:[NSMutableArray new] forKey:iterateDay];
-                iterateDay = [iterateDay dateByAddingYears:0 months:0 days:1];
-            }
-            
-            /*****************************************************************
-             *
-             * Step2:
-             *      Iterate all events and add event to the dictionary
-             *
-             *****************************************************************/
-            for (DPCalendarIconEvent *event in iconEvents) {
-                
-                NSUInteger preservedComponents = (NSYearCalendarUnit | NSMonthCalendarUnit | NSDayCalendarUnit);
-                NSDate *startDate = [weakSelf.calendar dateFromComponents:[weakSelf.calendar components:preservedComponents fromDate:event.startTime]];
-                NSDate *endDate = [weakSelf.calendar dateFromComponents:[weakSelf.calendar components:preservedComponents fromDate:[event.endTime dateByAddingYears:0 months:0 days:1]]];
-                
-                NSDate *date = [startDate copy];
-                
-                /*****************************************************************
-                 *
-                 * Add that event to the corresponding date
-                 *
-                 *****************************************************************/
-                while ([date compare:endDate] != NSOrderedSame) {
-                    if ([eventsByDay objectForKey:date]) {
-                        [((NSMutableArray *)[eventsByDay objectForKey:date]) addObject:event];
-                    }
-                    date = [date dateByAddingYears:0 months:0 days:1];
-                }
-                
-            }
-        }
-        
-        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-            weakSelf.iconEventsForEachDay = eventsByDay.copy;
-            [weakSelf reloadCurrentView];
-            if (complete) complete();
-        }];
-    }];
-}
-
 
 #pragma mark - DPCalendarMonthlySingleMonthCellDelegate
 -(void)didTapEvent:(DPCalendarEvent *)event onDate:(NSDate *)date {

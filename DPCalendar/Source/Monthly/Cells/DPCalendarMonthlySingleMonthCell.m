@@ -69,9 +69,9 @@
     CGPoint point = [gesutreRecognizer locationInView:self];
     NSDate *day = self.date;
     for (DPCalendarEvent *event in self.events) {
-        if (event.rowIndex == 0) {
-            continue;
-        }
+//        if (event.rowIndex == 0) {
+//            continue;
+//        }
         CGFloat eventOriginY = event.rowIndex * self.rowHeight;
         CGFloat eventMaxY = eventOriginY + self.rowHeight;
         if ((point.y >= eventOriginY) && (point.y < eventMaxY)) {
@@ -150,7 +150,11 @@
     
 
     CGRect dayRect = CGRectMake(size.width - daySize.width - DAY_TEXT_RIGHT_MARGIN, (self.rowHeight - self.dayFont.pointSize) / 2, daySize.width, daySize.height);
-    [dayString dp_drawInRect:dayRect withAttributes:@{NSFontAttributeName:self.dayFont, NSParagraphStyleAttributeName:textStyle, NSForegroundColorAttributeName:isDayToday ? [UIColor whiteColor] : self.dayTextColor}];
+    if ([self.events count] < 1) {
+        //Draw the day only if there are no events, to save space
+        [dayString dp_drawInRect:dayRect withAttributes:@{NSFontAttributeName:self.dayFont, NSParagraphStyleAttributeName:textStyle, NSForegroundColorAttributeName:isDayToday ? [UIColor whiteColor] : self.dayTextColor}];
+
+    }
     
     
     int eventsNotShowingCount = 0;
@@ -202,9 +206,9 @@
         
         NSDate *day = self.date;
         
-        UIColor *color = [self.eventColors objectAtIndex:event.colorIndex % self.eventColors.count];
+        UIColor *color = self.tintColor; //[self.eventColors objectAtIndex:event.colorIndex % self.eventColors.count];
         
-        if (event.rowIndex == 0 || ((event.rowIndex + 2) * self.rowHeight  > rect.size.height)) {
+        if (((event.rowIndex + 2) * self.rowHeight  > rect.size.height)) {
             eventsNotShowingCount++;
             continue;
         }

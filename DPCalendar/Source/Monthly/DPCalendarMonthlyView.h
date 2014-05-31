@@ -85,9 +85,6 @@ extern NSString *const DPCalendarMonthlyViewAttributeMonthRows; //A convenient f
 - (NSArray *)eventsForDay:(NSDate *)date;
 - (NSArray *)iconEventsForDay:(NSDate *)date;
 
-- (void) setEvents:(NSArray *)events complete:(void (^)(void))complete;
-- (void) setIconEvents:(NSArray *)iconEvents complete:(void (^)(void))complete;
-
 - (void) resetViews;
 
 @end
